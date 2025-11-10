@@ -12,22 +12,57 @@
     --text: #2c3e50;
     --border: #e1e8ed;
   }
+  * {
+    box-sizing: border-box;
+  }
+  
   body { 
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
     display: flex;
-    gap: 32px;
-    padding: 24px;
+    flex-direction: column;
+    gap: 20px;
+    padding: 16px;
     background: var(--background);
     color: var(--text);
     min-height: 100vh;
     margin: 0;
+    -webkit-text-size-adjust: 100%;
   }
+
+  @media (min-width: 1024px) {
+    body {
+      flex-direction: row;
+      gap: 32px;
+      padding: 24px;
+    }
+  }
+  .canvas-container {
+    width: 100%;
+    max-width: 600px;
+    margin: 0 auto;
+  }
+
+  canvas {
+    width: 100%;
+    height: auto;
+  }
+
   .panel { 
-    width: 340px;
+    width: 100%;
+    max-width: 340px;
+    margin: 0 auto;
     background: white;
-    padding: 24px;
+    padding: 20px;
     border-radius: 12px;
     box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  }
+
+  @media (min-width: 1024px) {
+    .panel {
+      width: 340px;
+      margin: 0;
+      padding: 24px;
+    }
   }
   h1 { 
     font-size: 24px;

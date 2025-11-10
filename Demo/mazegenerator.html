@@ -5,32 +5,68 @@
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Генератор лабиринтов</title>
 <style>
+  * {
+    box-sizing: border-box;
+  }
+
   body { 
     font-family: 'Segoe UI', system-ui, sans-serif; 
     display: flex; 
-    gap: 24px; 
-    padding: 24px;
+    flex-direction: column;
+    gap: 20px; 
+    padding: 16px;
     background: #f5f5f5;
     min-height: 100vh;
     margin: 0;
+    -webkit-text-size-adjust: 100%;
   }
+
+  @media (min-width: 1024px) {
+    body {
+      flex-direction: row;
+      gap: 24px;
+      padding: 24px;
+    }
+  }
+
   .left { 
-    flex: 0 0 640px;
+    width: 100%;
+    max-width: 640px;
+    margin: 0 auto;
+  }
+
+  @media (min-width: 1024px) {
+    .left {
+      margin: 0;
+      flex: 0 0 640px;
+    }
   }
   canvas { 
+    width: 100%;
+    height: auto;
     border-radius: 12px;
     background: #fff;
     display: block;
     box-shadow: 0 4px 6px rgba(0,0,0,0.1);
   }
+  
   .panel { 
-    flex: 1; 
-    min-width: 260px; 
+    width: 100%;
     max-width: 420px;
+    margin: 0 auto;
     background: white;
-    padding: 24px;
+    padding: 20px;
     border-radius: 12px;
     box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  }
+
+  @media (min-width: 1024px) {
+    .panel {
+      margin: 0;
+      padding: 24px;
+      flex: 1;
+      min-width: 260px;
+    }
   }
   h1 {
     font-size: 24px;
@@ -73,9 +109,17 @@
     background: #357abd;
   }
   .row {
-    display: flex;
-    gap: 12px;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
     margin-top: 12px;
+  }
+
+  @media (min-width: 640px) {
+    .row {
+      display: flex;
+      gap: 12px;
+    }
   }
   .small {
     font-size: 13px;

@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>МатКод Демо</title>
+<style>
+:root {
+  --primary: #4a90e2;
+  --secondary: #50c878;
+  --background: #f0f2f5;
+  --text: #2c3e50;
+  --shadow: rgba(0,0,0,0.1);
+}
+
+body { 
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  background: var(--background);
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 40px 20px;
+  text-align: center;
+}
+
+h1 {
+  font-size: 2.5rem;
+  margin-bottom: 1rem;
+  color: var(--primary);
+  text-align: center;
+}
+
+.subtitle {
+  font-size: 1.2rem;
+  color: var(--text);
+  margin-bottom: 3rem;
+  opacity: 0.8;
+}
+
+.cards {
+  display: flex;
+  gap: 32px;
+  justify-content: center;
+  margin-top: 2rem;
+}
+
+.card {
+  background: white;
+  border-radius: 16px;
+  padding: 2rem;
+  width: 300px;
+  text-align: left;
+  box-shadow: 0 8px 24px var(--shadow);
+  transition: all 0.3s ease;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 12px 32px var(--shadow);
+}
+
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 4px;
+  background: var(--primary);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.3s ease;
+}
+
+.card:hover::before {
+  transform: scaleX(1);
+}
+
+.card h2 {
+  font-size: 1.5rem;
+  margin: 0 0 1rem;
+  color: var(--text);
+}
+
+.card p {
+  margin: 0;
+  line-height: 1.6;
+  color: var(--text);
+  opacity: 0.8;
+}
+
+.card-icon {
+  font-size: 2.5rem;
+  margin-bottom: 1rem;
+}
+
+.apps {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: white;
+  z-index: 1000;
+}
+
+.apps.active {
+  display: block;
+}
+
+.back-button {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  background: var(--primary);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 1001;
+  transition: background 0.2s;
+}
+
+.back-button:hover {
+  background: #357abd;
+}
+
+.algomozaic-app, .maze-app {
+  display: none;
+  height: 100vh;
+  width: 100vw;
+}
+
+footer {
+  margin-top: 4rem;
+  text-align: center;
+  color: var(--text);
+  opacity: 0.7;
+  font-size: 0.9rem;
+}
+</style>
+</head>
+<body>
+
+<div class="container" id="menu">
+  <h1>Алгоритмические Демонстрации</h1>
+  <div class="subtitle">Выберите интерактивную демонстрацию</div>
+  
+  <div class="cards">
+    <div class="card" onclick="showApp('algomozaic')">
+      <div class="card-icon">🎨</div>
+      <h2>АлгоМозаика</h2>
+      <p>Создавайте красивые узоры с помощью математических правил. Экспериментируйте с различными условиями и цветами.</p>
+    </div>
+    
+    <div class="card" onclick="showApp('maze')">
+      <div class="card-icon">🌐</div>
+      <h2>Генератор Лабиринтов</h2>
+      <p>Генерируйте случайные лабиринты и наблюдайте за тем, как алгоритм находит путь от старта до финиша.</p>
+    </div>
+  </div>
+
+</div>
+
+<button class="back-button" onclick="showMenu()" style="display:none">
+  ← Назад к меню
+</button>
+
+<div id="algomozaic-app" class="apps algomozaic-app">
+  <iframe src="Demo/algomozaic.html" style="width:100%;height:100%;border:none;"></iframe>
+</div>
+
+<div id="maze-app" class="apps maze-app">
+  <iframe src="Demo/mazegenerator.html" style="width:100%;height:100%;border:none;"></iframe>
+</div>
+
+<script>
+function showApp(appName) {
+  document.getElementById('menu').style.display = 'none';
+  document.querySelector('.back-button').style.display = 'flex';
+  
+  document.getElementById('algomozaic-app').style.display = 'none';
+  document.getElementById('maze-app').style.display = 'none';
+  
+  document.getElementById(appName + '-app').style.display = 'block';
+}
+
+function showMenu() {
+  document.getElementById('menu').style.display = 'block';
+  document.querySelector('.back-button').style.display = 'none';
+  
+  document.getElementById('algomozaic-app').style.display = 'none';
+  document.getElementById('maze-app').style.display = 'none';
+}
+</script>
+
+</body>
+</html>

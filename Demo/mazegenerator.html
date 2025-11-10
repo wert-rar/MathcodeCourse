@@ -1,0 +1,401 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Генератор лабиринтов</title>
+<style>
+  body { 
+    font-family: 'Segoe UI', system-ui, sans-serif; 
+    display: flex; 
+    gap: 24px; 
+    padding: 24px;
+    background: #f5f5f5;
+    min-height: 100vh;
+    margin: 0;
+  }
+  .left { 
+    flex: 0 0 640px;
+  }
+  canvas { 
+    border-radius: 12px;
+    background: #fff;
+    display: block;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  }
+  .panel { 
+    flex: 1; 
+    min-width: 260px; 
+    max-width: 420px;
+    background: white;
+    padding: 24px;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  }
+  h1 {
+    font-size: 24px;
+    margin: 0 0 24px;
+    color: #1a1a1a;
+  }
+  label {
+    display: block;
+    margin-top: 16px;
+    font-weight: 500;
+    color: #4a4a4a;
+  }
+  input[type=number], select { 
+    width: 100%;
+    padding: 10px;
+    margin-top: 8px;
+    box-sizing: border-box;
+    font-size: 14px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    outline: none;
+  }
+  input[type=number]:focus, select:focus {
+    border-color: #4a90e2;
+    box-shadow: 0 0 0 2px rgba(74,144,226,0.2);
+  }
+  button {
+    width: 100%;
+    padding: 10px;
+    margin-top: 8px;
+    font-size: 14px;
+    border: none;
+    border-radius: 6px;
+    background: #4a90e2;
+    color: white;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  button:hover {
+    background: #357abd;
+  }
+  .row {
+    display: flex;
+    gap: 12px;
+    margin-top: 12px;
+  }
+  .small {
+    font-size: 13px;
+    color: #666;
+    line-height: 1.5;
+  }
+  .controls {
+    display: grid;
+    gap: 12px;
+  }
+</style>
+</head>
+<body>
+<div class="left">
+  <canvas id="maze" width="600" height="600"></canvas>
+  <div class="row" style="margin-top:8px;">
+    <button id="btnGen">Сгенерировать лабиринт</button>
+    <button id="btnSolve">Найти путь</button>
+    <button id="btnClear">Очистить путь</button>
+    <button id="btnExport">Скачать PNG</button>
+  </div>
+</div>
+
+<div class="panel">
+  <h1>Генератор лабиринтов</h1>
+  <div class="controls">
+    <label>Размер сетки (чётное число клеток)</label>
+    <input id="gridN" type="number" min="8" max="120" value="31" />
+    <label>Старт / финиш</label>
+    <select id="startPos">
+      <option value="tl">Верхний левый → Нижний правый</option>
+      <option value="random">Случайные</option>
+      <option value="entrance">Вход слева, выход справа</option>
+    </select>
+    <div style="display:flex;gap:8px">
+      <button id="btnStepSolve">Шаг</button>
+      <button id="btnReset">Сброс</button>
+    </div>
+    </div>
+</div>
+
+<script>
+const canvas = document.getElementById('maze');
+const ctx = canvas.getContext('2d');
+const btnGen = document.getElementById('btnGen');
+const btnSolve = document.getElementById('btnSolve');
+const btnClear = document.getElementById('btnClear');
+const btnExport = document.getElementById('btnExport');
+const btnReset = document.getElementById('btnReset');
+const btnStepSolve = document.getElementById('btnStepSolve');
+const gridNInput = document.getElementById('gridN');
+const startPosSel = document.getElementById('startPos');
+
+const ANIMATION_SPEED = 20;
+
+
+let N = 31; // grid cells (odd preferred for walls)
+let cellSize = 20;
+let cols, rows;
+let grid = [];
+let animationId = null;
+let solving = false;
+let solveQueue = [];
+let solveVisited = null;
+let solveParent = null;
+let startCell = null, endCell = null;
+
+function resizeToN(n){
+  N = Math.max(5, Math.min(121, parseInt(n) || 31));
+  if (N % 2 === 0) N += 1;
+  cols = N; rows = N;
+  cellSize = Math.floor(Math.min(600/cols, 600/rows));
+  canvas.width = cellSize * cols;
+  canvas.height = cellSize * rows;
+}
+
+function makeEmptyGrid(){
+  grid = new Array(rows);
+  for (let y=0;y<rows;y++){
+    grid[y] = new Array(cols);
+    for (let x=0;x<cols;x++){
+      grid[y][x] = {x, y, wall: true, visited:false};
+    }
+  }
+}
+
+function drawGrid(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  for (let y=0;y<rows;y++){
+    for (let x=0;x<cols;x++){
+      const c = grid[y][x];
+      ctx.fillStyle = c.wall ? '#222' : '#f7f7f7';
+      ctx.fillRect(x*cellSize, y*cellSize, cellSize, cellSize);
+    }
+  }
+  if (startCell) {
+    ctx.fillStyle = '#2ca02c'; ctx.fillRect(startCell.x*cellSize, startCell.y*cellSize, cellSize, cellSize);
+  }
+  if (endCell) {
+    ctx.fillStyle = '#d62728'; ctx.fillRect(endCell.x*cellSize, endCell.y*cellSize, cellSize, cellSize);
+  }
+}
+
+function neighbours(cx, cy, step=2){
+  const list=[];
+  const dirs = [[step,0],[-step,0],[0,step],[0,-step]];
+  for (const d of dirs){
+    const nx = cx + d[0], ny = cy + d[1];
+    if (nx>=1 && ny>=1 && nx<cols-1 && ny<rows-1) list.push(grid[ny][nx]);
+  }
+  return list;
+}
+
+function generateDFS(){
+  makeEmptyGrid();
+  const sx = 1 + 2*Math.floor(Math.random()*((cols-1)/2));
+  const sy = 1 + 2*Math.floor(Math.random()*((rows-1)/2));
+  const stack = [];
+  grid[sy][sx].wall = false;
+  grid[sy][sx].visited = true;
+  stack.push(grid[sy][sx]);
+  while(stack.length){
+    const cur = stack[stack.length-1];
+    const nbrs = neighbours(cur.x, cur.y).filter(n=>n.wall);
+    if (nbrs.length===0){
+      stack.pop();
+    } else {
+      const nxt = nbrs[Math.floor(Math.random()*nbrs.length)];
+      const wx = (cur.x + nxt.x)/2, wy = (cur.y + nxt.y)/2;
+      grid[wy][wx].wall = false;
+      grid[nxt.y][nxt.x].wall = false;
+      grid[nxt.y][nxt.x].visited = true;
+      stack.push(grid[nxt.y][nxt.x]);
+    }
+  }
+}
+
+function setStartEnd(mode){
+  if (mode === 'tl'){
+    startCell = grid[1][1];
+    endCell = grid[rows-2][cols-2];
+  } else if (mode === 'entrance'){
+    startCell = grid[Math.floor(rows/2)][0];
+    endCell = grid[Math.floor(rows/2)][cols-1];
+    grid[startCell.y][startCell.x].wall = false;
+    grid[endCell.y][endCell.x].wall = false;
+    grid[startCell.y][1].wall = false;
+    grid[endCell.y][cols-2].wall = false;
+  } else {
+    const free = [];
+    for (let y=1;y<rows-1;y++){
+      for (let x=1;x<cols-1;x++){
+        if (!grid[y][x].wall) free.push(grid[y][x]);
+      }
+    }
+    startCell = free[Math.floor(Math.random()*free.length)];
+    endCell = free[Math.floor(Math.random()*free.length)];
+  }
+}
+
+function bfsSolve(){
+  const q = [];
+  const visited = new Array(rows).fill(0).map(()=>new Array(cols).fill(false));
+  const parent = new Array(rows).fill(0).map(()=>new Array(cols).fill(null));
+  q.push(startCell);
+  visited[startCell.y][startCell.x] = true;
+  let found = false;
+  while(q.length){
+    const cur = q.shift();
+    if (cur.x === endCell.x && cur.y === endCell.y){ found = true; break; }
+    const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
+    for (const d of dirs){
+      const nx = cur.x + d[0], ny = cur.y + d[1];
+      if (nx>=0 && ny>=0 && nx<cols && ny<rows && !visited[ny][nx] && !grid[ny][nx].wall){
+        visited[ny][nx] = true;
+        parent[ny][nx] = cur;
+        q.push(grid[ny][nx]);
+      }
+    }
+  }
+  if (!found) return null;
+  let path = [];
+  let cur = endCell;
+  while (cur && !(cur.x===startCell.x && cur.y===startCell.y)){
+    path.push(cur);
+    cur = parent[cur.y][cur.x];
+  }
+  path.push(startCell);
+  path.reverse();
+  return path;
+}
+
+function initializeSolve() {
+  solving = true;
+  solveQueue = [];
+  solveVisited = new Array(rows).fill(0).map(()=>new Array(cols).fill(false));
+  solveParent = new Array(rows).fill(0).map(()=>new Array(cols).fill(null));
+  solveQueue.push(startCell);
+  solveVisited[startCell.y][startCell.x] = true;
+}
+
+function stepSolve() {
+  if (!solving || solveQueue.length === 0) {
+    solving = false;
+    return false;
+  }
+
+  const cur = solveQueue.shift();
+  if (!(cur.x === startCell.x && cur.y === startCell.y) && 
+      !(cur.x === endCell.x && cur.y === endCell.y)) {
+    ctx.fillStyle = '#c7e9c0';
+    ctx.fillRect(cur.x*cellSize, cur.y*cellSize, cellSize, cellSize);
+  }
+
+  if (cur.x === endCell.x && cur.y === endCell.y) {
+    reconstruct(solveParent);
+    solving = false;
+    return false;
+  }
+
+  const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
+  for (const d of dirs) {
+    const nx = cur.x + d[0], ny = cur.y + d[1];
+    if (nx >= 0 && ny >= 0 && nx < cols && ny < rows && 
+        !solveVisited[ny][nx] && !grid[ny][nx].wall) {
+      solveVisited[ny][nx] = true;
+      solveParent[ny][nx] = cur;
+      solveQueue.push(grid[ny][nx]);
+    }
+  }
+  return true;
+}
+
+function animatedBFS() {
+  initializeSolve();
+  let interval = setInterval(() => {
+    if (!stepSolve()) {
+      clearInterval(interval);
+    }
+  }, ANIMATION_SPEED);
+}
+
+function reconstruct(parent){
+  let cur = endCell;
+  const path = [];
+  while (cur && !(cur.x===startCell.x && cur.y===startCell.y)){
+    path.push(cur);
+    cur = parent[cur.y][cur.x];
+  }
+  path.push(startCell);
+  path.reverse();
+  for (let i=0;i<path.length;i++){
+    const p = path[i];
+    ctx.fillStyle = (i===0?'#2ca02c': (i===path.length-1? '#d62728' : '#ffd92f'));
+    ctx.fillRect(p.x*cellSize, p.y*cellSize, cellSize, cellSize);
+  }
+}
+
+btnGen.onclick = ()=>{
+  resizeToN(gridNInput.value);
+  generateDFS();
+  setStartEnd(startPosSel.value);
+  drawGrid();
+};
+
+btnSolve.onclick = ()=>{
+  if (!startCell || !endCell) return;
+  if (solving) return;
+  const path = bfsSolve();
+  if (!path){ alert('Путь не найден :('); return; }
+  animatedBFS();
+};
+
+btnStepSolve.onclick = ()=>{
+  if (!startCell || !endCell) return;
+  if (!solving) {
+    const path = bfsSolve();
+    if (!path){ alert('Путь не найден :('); return; }
+    initializeSolve();
+  }
+  stepSolve();
+};
+
+btnClear.onclick = ()=>{ 
+  solving = false;
+  solveQueue = [];
+  solveVisited = null;
+  solveParent = null;
+  drawGrid(); 
+};
+
+btnReset.onclick = ()=>{
+  solving = false;
+  solveQueue = [];
+  solveVisited = null;
+  solveParent = null;
+  resizeToN(31);
+  makeEmptyGrid();
+  drawGrid();
+  startCell = null;
+  endCell = null;
+};
+
+btnExport.onclick = ()=>{
+  const link = document.createElement('a');
+  link.download = 'maze.png';
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+};
+
+function main(){
+    resizeToN(N);
+    makeEmptyGrid();
+    generateDFS();
+    setStartEnd('tl');
+    drawGrid();
+}
+
+main();
+
+</script>
+</body>
+</html>

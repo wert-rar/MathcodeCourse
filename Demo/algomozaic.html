@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>АлгоМозаика </title>
+<style>
+  :root {
+    --primary: #4a90e2;
+    --secondary: #50c878;
+    --background: #f5f7fa;
+    --text: #2c3e50;
+    --border: #e1e8ed;
+  }
+  body { 
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    display: flex;
+    gap: 32px;
+    padding: 24px;
+    background: var(--background);
+    color: var(--text);
+    min-height: 100vh;
+    margin: 0;
+  }
+  .panel { 
+    width: 340px;
+    background: white;
+    padding: 24px;
+    border-radius: 12px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  }
+  h1 { 
+    font-size: 24px;
+    margin: 0 0 20px;
+    color: var(--primary);
+  }
+  label { 
+    display: block;
+    margin: 12px 0 6px;
+    font-weight: 500;
+    color: var(--text);
+  }
+  select,
+  input[type=number] { 
+    width: 100%;
+    padding: 10px;
+    font-size: 14px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    box-sizing: border-box;
+    transition: border-color 0.2s;
+  }
+  select:focus,
+  input:focus {
+    outline: none;
+    border-color: var(--primary);
+  }
+  button {
+    width: 100%;
+    padding: 10px;
+    font-size: 14px;
+    border: none;
+    border-radius: 6px;
+    background: var(--primary);
+    color: white;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+  button:hover {
+    opacity: 0.9;
+  }
+  canvas { 
+    border: none;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  }
+  .row { 
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+  }
+  .color { 
+    height: 36px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  small { 
+    color: #64748b;
+    line-height: 1.5;
+  }
+  .controls {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+  }
+  .controls button {
+    flex: 1;
+  }
+  #btnRandom { background: var(--secondary); }
+  #btnClear { background: #e74c3c; }
+  #btnExport { background: #34495e; }
+</style>
+</head>
+<body>
+
+<div>
+  <canvas id="c" width="600" height="600"></canvas>
+  <div class="controls">
+    <button id="btnRandom">🎲 Случайное</button>
+    <button id="btnClear">🗑️ Очистить</button>
+    <button id="btnExport">⬇️ Скачать PNG</button>
+  </div>
+</div>
+
+<div class="panel">
+  <h1>🎨 АлгоМозаика — правила</h1>
+
+  <label>📏 Размер клетки</label>
+  <input id="gridSize" type="number" min="6" max="80" value="20" />
+
+  <label>Правило 1</label>
+  <select id="rule1">
+    <option value="none">— нет —</option>
+    <option value="parity">(x+y) % 2 == 0</option>
+    <option value="unparity">(x+y) % 2 == 1</option>
+    <option value="xmod">x % N == 0</option>
+    <option value="ythreshold">y > T</option>
+    <option value="diagonal">x == y (диагональ)</option>
+  </select>
+  <input id="rule1param" type="number" placeholder="N или T" style="margin-top:6px;" />
+
+  <label style="margin-top:12px;">Правило 2</label>
+  <select id="rule2">
+    <option value="none">— нет —</option>
+    <option value="parity">(x+y) % 2 == 0</option>
+    <option value="unparity">(x+y) % 2 == 1</option>
+    <option value="xmod">x % N == 0</option>
+    <option value="ythreshold">y > T</option>
+    <option value="diagonal">x == y (диагональ)</option>
+  </select>
+  <input id="rule2param" type="number" placeholder="N или T" style="margin-top:6px;" />
+
+  <label style="margin-top:12px;">Цвет для правила 1</label>
+  <input id="color1" class="color" type="color" value="#1f77b4" />
+
+  <label style="margin-top:8px;">Цвет для правила 2</label>
+  <input id="color2" class="color" type="color" value="#ff7f0e" />
+
+  <label style="margin-top:8px;">Фон</label>
+  <input id="colorBg" class="color" type="color" value="#ffffff" />
+
+  <div class="row" style="margin-top:12px;">
+    <button id="btnApply">Применить правила</button>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+const el = id => document.getElementById(id);
+const gridSizeInput = el('gridSize');
+const rule1 = el('rule1')
+const rule2 = el('rule2');
+const r1p = el('rule1param')
+const r2p = el('rule2param');
+const color1 = el('color1')
+const color2 = el('color2')
+const colorBg = el('colorBg');
+const btnApply = el('btnApply')
+const btnExport = el('btnExport')
+const btnRandom = el('btnRandom')
+const btnClear = el('btnClear');
+
+function drawGrid(n, c1, c2, bg) {
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  const size = n;
+  const w = canvas.width / size;
+  for (let y=0;y<size;y++){
+    for (let x=0;x<size;x++){
+      let fill = bg;
+      const r1 = rule1.value;
+      if (r1 !== 'none') {
+        if (applyRule(r1, x, y, r1p.value)) fill = c1;
+      }
+
+      if (fill === bg) {
+        const r2 = rule2.value;
+        if (r2 !== 'none') {
+          if (applyRule(r2, x, y, r2p.value)) fill = c2;
+        }
+      }
+      ctx.fillStyle = fill;
+      ctx.fillRect(x*w, y*w, Math.ceil(w), Math.ceil(w));
+    }
+  }
+
+}
+
+function applyRule(rule, x, y, param){
+  if (rule === 'parity') return ((x+y) % 2) === 0;
+  if (rule === 'unparity') return ((x+y) % 2) !== 0;
+  if (rule === 'xmod') {
+    const n = parseInt(param) || 2;
+    return (x % n) === 0;
+  }
+  if (rule === 'ythreshold') {
+    const t = parseInt(param) || 5;
+    return y > t;
+  }
+  if (rule === 'diagonal') {
+    return x === y;
+  }
+  return false;
+}
+
+btnApply.onclick = () => {
+  const n = Math.max(6, Math.min(80, parseInt(gridSizeInput.value)||20));
+  drawGrid(n, color1.value, color2.value, colorBg.value);
+};
+btnRandom.onclick = () => {
+  const n = 12 + Math.floor(Math.random()*28);
+  gridSizeInput.value = n;
+  const opts = ['parity','xmod','ythreshold','none','unparity','diagonal'];
+  rule1.value = opts[Math.floor(Math.random()*3)];
+  rule2.value = opts[Math.floor(Math.random()*3)];
+  r1p.value = 2 + Math.floor(Math.random()*5);
+  r2p.value = 2 + Math.floor(Math.random()*5);
+  color1.value = '#'+Math.floor(Math.random()*16777215).toString(16).padStart(6,'0');
+  color2.value = '#'+Math.floor(Math.random()*16777215).toString(16).padStart(6,'0');
+  colorBg.value = '#ffffff';
+  btnApply.click();
+};
+btnClear.onclick = () => {
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.fillStyle = '#fff'
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+};
+btnExport.onclick = () => {
+  const link = document.createElement('a');
+  link.download = 'algomosaic.png';
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+};
+
+btnApply.click();
+</script>
+
+</body>
+</html>
